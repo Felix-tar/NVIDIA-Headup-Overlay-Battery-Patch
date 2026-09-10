@@ -20,6 +20,47 @@ CPU 11% 52°C | BAT 63% ↑36.8W 0:51 | GPU 2% 46°C
 
 ---
 
+## Quick preview & recommended NVIDIA settings
+
+The patch is designed to turn NVIDIA's normal performance HUD into a compact **laptop-focused top-center overlay**. v3 normally applies the required custom metric set and position automatically. If the HUD does not look as expected after an NVIDIA update or on another system, use the settings below as the reference configuration.
+
+### 1. NVIDIA overlay settings
+
+Open the NVIDIA overlay with **`Alt + Z`**, go to the statistics/performance overlay settings and use the **Custom** view. The target configuration is:
+
+- **Position:** Top Center
+- **Layout:** Linear
+- **CPU Utilization:** enabled
+- **CPU Temperature:** enabled
+- **GPU Utilization:** enabled
+- **GPU Temperature:** enabled
+- **CPU Clock:** used internally by this project as the **BAT** slot
+- FPS, latency, clocks and other values can remain disabled unless you personally want them
+
+![Recommended NVIDIA overlay settings](nvidia_settings.png)
+
+> The patch repurposes NVIDIA's CPU-clock metric slot for battery telemetry. Therefore the CPU-clock option may internally be part of the custom set even though the HUD displays **BAT** instead of a CPU frequency.
+
+### 2. Expected HUD on the desktop
+
+After installation, the result should look similar to this and remain centered at the top of the screen:
+
+![Patched NVIDIA laptop HUD on desktop](headup_desktop.png)
+
+A typical line can look like:
+
+```text
+CPU 16% 54°C | BAT 78% ↓14.6W 4:12 | GPU 8% 47°C
+```
+
+The same HUD continues to use NVIDIA's own overlay rendering path, so **`Alt + R`** remains the global show/hide hotkey and the overlay can also remain visible over supported fullscreen games.
+
+If the Surface Laptop Studio 2 or another Optimus/hybrid laptop reports an invalid NVIDIA GPU temperature such as `0°C`, the provider's GPU-temperature fallback described below replaces that reading with a valid NVML/`nvidia-smi` value when available, or **`OFF`** when the dedicated GPU is actually power-gated.
+
+> Put `nvidia_settings.png` and `headup_desktop.png` in the same folder as this `README.md` so GitHub renders the screenshots automatically.
+
+---
+
 ## Why this exists
 
 NVIDIA's Performance Overlay is a very good base for a laptop HUD because it is already integrated into the NVIDIA App, can stay visible over games/fullscreen applications and can be toggled globally with:
