@@ -483,6 +483,8 @@ NVOverlayBatteryPatch\
 ├── NvBatteryProvider.exe
 ├── NvBatteryProvider.cs
 ├── Patch-NvidiaOverlay.ps1
+├── Research.cmd
+├── Research-NvidiaOverlay.ps1
 ├── README.md
 ├── patch.log
 ├── state.json
@@ -545,6 +547,104 @@ from the extracted release folder.
 The script requests administrator rights and runs the installed v3 patcher.
 
 ---
+
+
+# Compatibility research tool
+
+v3 includes a separate **read-only research/diagnostic collector** for the case where NVIDIA releases a new App/OSC frontend and the current compatibility profile safely refuses to patch it.
+
+Run:
+
+```text
+Research.cmd
+```
+
+The research tool does **not** patch NVIDIA files, stop the overlay, restart the overlay, install drivers or require administrator rights. Its only purpose is to collect the exact information needed to understand a new NVIDIA frontend build and adapt this repository safely.
+
+This is intended for a workflow such as:
+
+```text
+NVIDIA App update
+      ↓
+NVBO reports "unsupported"
+      ↓
+run Research.cmd
+      ↓
+NVBO_Research_YYYYMMDD_HHMMSS.zip
+      ↓
+share the ZIP privately with a developer / AI assistant
+      ↓
+map the new NVIDIA frontend structure
+      ↓
+add a new explicit compatibility profile to the repository
+      ↓
+test the new profile
+```
+
+## What the research collector gathers
+
+The generated ZIP contains a human-readable `REPORT.md`, a machine-readable `manifest.json`, an `AI_PROMPT.md` and several focused diagnostics.
+
+It records:
+
+- laptop manufacturer and model
+- Windows version/build
+- NVIDIA App/Overlay file version
+- detected graphics adapters and driver versions
+- the active NVIDIA `osc/main.<hash>.js` selected by `index.html`
+- SHA-256 and size of the active frontend bundle
+- whether `NVBO_PATCH_V1`, `NVBO_PATCH_V2` or `NVBO_PATCH_V3` is already present
+- exact occurrence counts for the current v3 compatibility anchors
+- focused code snippets around terms such as `cpuClock`, `gpuTemp`, `loadCustomMetricSet`, `setPerfOverlayQuadrant`, `customMetrics`, `centerTop` and the PerfMon update path
+- current `nvidia-smi` temperature/utilization information when available
+- current local provider status from `127.0.0.1:37921`
+- recent NVBO `patch.log` / `state.json` information when v3 is installed
+- the current open-source patch source (`Patch-NvidiaOverlay.ps1`, `NvBatteryProvider.cs`, README) as context for the developer/AI
+
+By default it also copies the **text-based active NVIDIA OSC frontend** (`index.html`, active `main.*.js`, relevant CSS/runtime files) into the private research package. This is useful because a minified NVIDIA update can rename variables and move the exact six semantic patch points even though the visible UI still looks identical.
+
+It deliberately does **not** collect NVIDIA DLLs, EXEs, `.pak` binaries, browser cache, screenshots, user documents, credentials or network secrets.
+
+Reports replace the current Windows username/profile path with placeholders where practical.
+
+## Research package location
+
+`Research.cmd` writes the package to the user's Downloads folder when available:
+
+```text
+Downloads\NVBO_Research_YYYYMMDD_HHMMSS.zip
+```
+
+If Downloads is unavailable, `%TEMP%` is used instead. Explorer opens with the generated ZIP selected after collection.
+
+For a smaller package that does not include the full NVIDIA `main.*.js`, run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Research-NvidiaOverlay.ps1 -NoFullFrontend
+```
+
+The reduced package still includes hashes, anchor counts and focused snippets, but the full frontend is usually more useful when creating support for a significantly changed NVIDIA release.
+
+## Using the research ZIP with an AI assistant
+
+The ZIP contains `AI_PROMPT.md`. It is written so that another user can upload the research package to an AI coding assistant together with the repository and ask it to adapt NVBO to that specific NVIDIA build.
+
+The AI instructions explicitly require it to preserve the safety model. In particular, it should **not** solve an update merely by weakening the `count == 1` anchor checks or by performing broad fuzzy replacements.
+
+The intended compatibility work is to rediscover the equivalent code for the same six semantic operations:
+
+1. reuse the `cpuClock` display slot as `BAT`
+2. inject the Battery text and GPU-temperature fallback into NVIDIA's PerfMon metric-update path
+3. start the localhost telemetry poll exactly once
+4. select `cpuUtil`, `cpuTemp`, `gpuUtil`, `gpuTemp`, `cpuClock` as the custom set
+5. force the performance overlay to `centerTop`
+6. preserve a stable metric-category order
+
+The AI/developer should then create a **new explicit compatibility profile** for the new NVIDIA frontend, retain older profiles, add a tested clean SHA-256 only after verification, and keep SHA-versioned backups, atomic replacement, smoke testing and rollback intact.
+
+This makes the research collector useful beyond the original Surface Laptop Studio 2. A user with another laptop, another driver or a future NVIDIA App release can produce a reproducible compatibility package instead of manually posting screenshots and guessing which minified code changed.
+
+> **Do not commit generated research ZIPs or captured NVIDIA frontend files to the public GitHub repository.** They originate from the user's local NVIDIA installation and are meant for private compatibility analysis. Commit only the resulting NVBO compatibility-profile changes and open-source project files.
 
 ## Uninstallation
 
@@ -722,6 +822,8 @@ NVOverlayBatteryPatch_v3/
 ├── Uninstall.ps1
 ├── Patch-NvidiaOverlay.ps1
 ├── NvBatteryProvider.cs
+├── Research.cmd
+├── Research-NvidiaOverlay.ps1
 └── README.md
 ```
 
@@ -817,6 +919,70 @@ C:\ProgramData\NVOverlayBatteryPatch\patch.log
 Damit ist v3 nicht "magisch für jede zukünftige NVIDIA-Version kompatibel", aber deutlich update-resistenter und vor allem so gebaut, dass unbekannte Updates möglichst nicht durch einen falschen Patch beschädigt werden.
 
 ---
+
+
+## Recherche- / Kompatibilitätswerkzeug
+
+Für den Fall, dass ein NVIDIA-App-Update von v3 korrekt als **`unsupported`** abgelehnt wird, liegt im Repository zusätzlich ein eigenes read-only Recherchewerkzeug:
+
+```text
+Research.cmd
+```
+
+Das Werkzeug verändert **keine** NVIDIA-Dateien, beendet keine Prozesse und benötigt für die reine Analyse keine Administratorrechte. Es sammelt genau die Daten, mit denen ein Entwickler oder eine KI die neue NVIDIA-Version nachvollziehen und anschließend ein neues, sauberes Patch-Profil für das Repository erstellen kann.
+
+Der Ablauf für andere Nutzer ist damit gedacht als:
+
+```text
+NVIDIA aktualisiert die App
+        ↓
+NVBO patcht aus Sicherheitsgründen nicht mehr
+        ↓
+Research.cmd ausführen
+        ↓
+NVBO_Research_YYYYMMDD_HHMMSS.zip entsteht
+        ↓
+ZIP privat einer KI / einem Entwickler geben
+        ↓
+neue NVIDIA-Codepfade den 6 NVBO-Funktionen zuordnen
+        ↓
+neues Kompatibilitätsprofil in der Repo erstellen
+```
+
+Das Recherche-ZIP enthält unter anderem:
+
+- Notebook-Hersteller und Modell
+- Windows-Build
+- NVIDIA-App-/Overlay-Version
+- GPU-/Treiberdaten
+- Namen, SHA-256 und Größe der tatsächlich aktiven `osc/main.<hash>.js`
+- Trefferzahlen der aktuellen v3-Patch-Anker
+- Codeausschnitte rund um `cpuClock`, `gpuTemp`, `loadCustomMetricSet`, `customMetrics`, `setPerfOverlayQuadrant`, `centerTop` und die PerfMon-Aktualisierung
+- `nvidia-smi`-Diagnose, sofern verfügbar
+- Status des lokalen Battery/GPU-Providers
+- die letzten NVBO-Logs und `state.json`, sofern vorhanden
+- die aktuellen Open-Source-NVBO-Dateien als Kontext für die KI
+- standardmäßig auch die relevanten textbasierten NVIDIA-OSC-Frontend-Dateien zur privaten Analyse
+
+Nicht gesammelt werden NVIDIA-DLLs/EXEs, `.pak`-Binärdateien, Browsercache, Screenshots, persönliche Dokumente, Passwörter oder Netzwerk-Geheimnisse.
+
+Das Paket landet normalerweise hier:
+
+```text
+Downloads\NVBO_Research_YYYYMMDD_HHMMSS.zip
+```
+
+Wer die komplette NVIDIA-`main.*.js` nicht in das Diagnosepaket aufnehmen möchte, kann stattdessen ausführen:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Research-NvidiaOverlay.ps1 -NoFullFrontend
+```
+
+Im ZIP befindet sich außerdem **`AI_PROMPT.md`**. Diese Datei erklärt einer KI bereits, welches Ziel erreicht werden soll und welche Sicherheitsregeln beim Anpassen der Repo bestehen bleiben müssen. Die KI soll insbesondere nicht einfach die eindeutigen Anchor-Prüfungen lockern, sondern die sechs semantischen Patch-Stellen in der neuen NVIDIA-Version neu identifizieren und dafür ein explizites Kompatibilitätsprofil erstellen.
+
+Dadurch kann theoretisch auch ein anderer Nutzer mit einem anderen Notebook oder einer zukünftigen NVIDIA-App-Version sein eigenes Research-ZIP erzeugen und es zusammen mit der GitHub-Repo einer KI geben. Die daraus resultierenden **NVBO-Codeänderungen** können anschließend normal in GitHub übernommen werden.
+
+> Generierte Research-ZIPs bzw. kopierte NVIDIA-Frontend-Dateien sollten **nicht öffentlich in die GitHub-Repo committed** werden. Sie sind nur für die private Kompatibilitätsanalyse gedacht.
 
 ## Disclaimer
 
